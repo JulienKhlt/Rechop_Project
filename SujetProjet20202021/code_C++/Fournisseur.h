@@ -19,6 +19,8 @@ public:
 
 	Fournisseur();
 	~Fournisseur() = default;
+
+	void print();
 	
 };
 

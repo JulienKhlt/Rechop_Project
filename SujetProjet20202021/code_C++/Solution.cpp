@@ -88,6 +88,7 @@ bool Solution::calculStocksEtCoutsUsines()
 			vector<int>(instance.nbEmballages,-1)));
 	int j = 0;
 	int r = 0;
+	int costUsine = 0.0;
 	// Stocks le matin du premier jour
 	for (int u = 0; u < instance.nbUsines; ++u)
 	{
@@ -109,7 +110,7 @@ bool Solution::calculStocksEtCoutsUsines()
 		// Envoi sur les routes
 		while (r < routes.size() && routes[r].jour == j)
 		{
-			auto const & route = routes[j];
+			auto const & route = routes[r];
 			for (int f = 0; f < route.nbFournisseurs; ++f)
 			{
 				for (int e =0; e < instance.nbEmballages; ++e)
@@ -133,7 +134,7 @@ bool Solution::calculStocksEtCoutsUsines()
 				}
 				if (stockUsineLeSoir[u][j][e] > instance.usines[u].stockMax[j][e])
 				{
-					cost += instance.usines[u].coutStockExcedentaire[e] * \
+					costUsine += instance.usines[u].coutStockExcedentaire[e] * \
 						(stockUsineLeSoir[u][j][e] - instance.usines[u].stockMax[j][e]);
 				}
 			}
@@ -156,6 +157,8 @@ bool Solution::calculStocksEtCoutsUsines()
 		cerr << "Toutes les routes ne partent pas un jour de l'horizon" << endl;
 		return false;
 	}
+	if (instance.verbose) cout << "cout usines: " << costUsine << endl;
+	cost += costUsine;
 	return true;
 }
 
@@ -166,6 +169,9 @@ bool Solution::calculStocksEtCoutsFournisseurs()
 			vector<int>(instance.nbEmballages,-1)));
 	int j = 0;
 	int r = 0;
+	int costFournisseur = 0;
+	vector<vector<int> > costFournisseurJour = vector<vector<int> >(instance.nbFournisseurs, vector<int>(instance.horizon, 0));
+
 	for (int f = 0; f < instance.nbFournisseurs; ++f)
 	{
 		for (int e = 0; e < instance.nbEmballages; ++e)
@@ -183,17 +189,19 @@ bool Solution::calculStocksEtCoutsFournisseurs()
 				stockFournisseurLeSoir[f][j][e] -= instance.fournisseurs[f].demande[j][e];
 				if (stockFournisseurLeSoir[f][j][e] < 0)
 				{
-					cost += instance.fournisseurs[f].coutExpeditionCarton[e] * \
-						stockFournisseurLeSoir[f][j][e];
+					costFournisseur += instance.fournisseurs[f].coutExpeditionCarton[e] * \
+						(- stockFournisseurLeSoir[f][j][e]);
+					costFournisseurJour[f][j] += instance.fournisseurs[f].coutExpeditionCarton[e] * \
+						(- stockFournisseurLeSoir[f][j][e]);
 					stockFournisseurLeSoir[f][j][e] = 0;
 				}
-			}
+ 			}
 		}
 
 		// Reception depuis les routes
 		while (r < routes.size() && routes[r].jour == j)
 		{
-			auto const & route = routes[j];
+			auto const & route = routes[r];
 			for (int f_r = 0; f_r < route.nbFournisseurs; ++f_r)
 			{
 				for (int e =0; e < instance.nbEmballages; ++e)
@@ -224,7 +232,9 @@ bool Solution::calculStocksEtCoutsFournisseurs()
 				}
 				if (stockFournisseurLeSoir[f][j][e] > instance.fournisseurs[f].stockMax[j][e])
 				{
-					cost += instance.fournisseurs[f].coutStockExcedentaire[e] * \
+					costFournisseur += instance.fournisseurs[f].coutStockExcedentaire[e] * \
+						(stockFournisseurLeSoir[f][j][e] - instance.fournisseurs[f].stockMax[j][e]);
+					costFournisseurJour[f][j] += instance.fournisseurs[f].coutStockExcedentaire[e] * \
 						(stockFournisseurLeSoir[f][j][e] - instance.fournisseurs[f].stockMax[j][e]);
 				}
 			}
@@ -247,11 +257,32 @@ bool Solution::calculStocksEtCoutsFournisseurs()
 		cerr << "Toutes les routes ne partent pas un jour de l'horizon" << endl;
 		return false;
 	}
+	if (instance.verbose) cout << "cout fournisseurs : " << costFournisseur << " avec le détail :" << endl;
+	for (int f = 0; f < instance.nbFournisseurs; f++)
+	{
+		for (int j =0; j< instance.horizon; ++j){
+			if (instance.verbose) cout << "  Fournisseur " << f << " jour " << j << " cout " << costFournisseurJour[f][j] <<  endl;
+		}
+	}
+
+	if (instance.verbose) cout << "Détail des stocks le soir: " << endl;
+	for (int f = 0; f < instance.nbFournisseurs; f++)
+	{
+		for (int j =0; j< instance.horizon; ++j){
+			for (int e = 0; e< instance.nbEmballages; ++e)
+			{
+				if (instance.verbose) cout << "  fournisseur " << f << " jour " << j << " emballage " << e << " st " << stockFournisseurLeSoir[f][j][e] << endl; 
+			}
+		}
+	}
+	
+	cost += costFournisseur;
 	return true;
 }
 
 bool Solution::calculCoutsRoutes()
 {
+	int costRoute = 0;
 	for (auto && route : routes)
 	{
 		if (route.nbFournisseurs == 0)
@@ -275,8 +306,10 @@ bool Solution::calculCoutsRoutes()
 			distance += instance.distanceMatrix[origine][destination];
 		}
 
-		cost += (instance.coutCamion + instance.coutArretCamion * route.nbFournisseurs \
+		costRoute += (instance.coutCamion + instance.coutArretCamion * route.nbFournisseurs \
 			+ instance.coutKilometrique * distance) * route.nbRealisations;
 	}
+	if (instance.verbose) cout << "couts routes " << costRoute << endl;
+	cost += costRoute;
 	return true;
 }

@@ -32,8 +32,9 @@ void checkValue(int valueRead, int valueAttendue, string message)
 	}
 }
 
-Instance::Instance(string const & filename)
+Instance::Instance(string const & filename, bool verb)
 {
+	verbose = verb;
 	auto read = ifstream(filename);
 	if (!read.is_open())
 	{

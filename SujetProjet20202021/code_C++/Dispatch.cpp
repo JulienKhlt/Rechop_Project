@@ -16,12 +16,14 @@ int help(string message)
 	cout << "Options: " << endl;
 	cout << " -checkSol <string>: read and check the solution provided" << endl;
 	cout << " -out <string>: output file name (default = out.txt)" << endl;
+	cout << " -v: verbose " << endl;
 	return 1;
 }
 
 int main(int argc, char const *argv[])
 {
 	executable = string(argv[0]);
+	bool verbose = false;
 	if (argc < 2) return help("Too few arguments");
 	
 	// Parse arguments
@@ -40,11 +42,12 @@ int main(int argc, char const *argv[])
 		else if (option == "-out"){
 			outputFile = string(argv[++i]);
 		}
+		else if (option == "-v") verbose = true;
 		else return help("Bad option " + option);
 		++i;
 	}
 
-	auto instance = Instance(instanceFile);
+	auto instance = Instance(instanceFile, verbose);
 	cout << "Instance lue. Le format de fichier est respecté" << endl;
 
 	if (checkSolution)

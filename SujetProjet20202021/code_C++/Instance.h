@@ -9,6 +9,8 @@
 class Instance
 {
 public:
+	bool verbose;
+
 	int horizon;
 	int nbUsines;
 	int nbFournisseurs;
@@ -23,7 +25,7 @@ public:
 	vector<Fournisseur> fournisseurs;
 	vector<vector<int> > distanceMatrix;
 
-	Instance(string const &);
+	Instance(string const &, bool);
 	~Instance() = default;
 	
 };

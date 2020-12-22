@@ -116,6 +116,6 @@ if abspath(PROGRAM_FILE) == @__FILE__
     filename = "Data/petite.csv"
     filepath = joinpath(@__DIR__, filename)
     petite_instance = lire_instance(filepath)
-    PNLE_entier(petite_instance.usines, petite_instance.fournisseurs, petite_instance.emballages, petite_instance.J, petite_instance.U, petite_instance.F, 1, petite_instance.L, petite_instance.γ, petite_instance.CStop, petite_instance.CCam, petite_instance.Graphe.d)
+    PNLE_entier(petite_instance.usines, petite_instance.fournisseurs, petite_instance.emballages, petite_instance.J, petite_instance.U, petite_instance.F, petite_instance.E, 0, petite_instance.L, petite_instance.γ, petite_instance.cstop, petite_instance.ccam, petite_instance.graphe.d, 100)
     # solution(filepath)
 end

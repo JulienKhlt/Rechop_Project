@@ -4,10 +4,10 @@ function data(usines, fournisseurs, emballages, E, U, F, J)
     b⁺ = collect(usines[u].b⁺[e, j] for e = 1:E, u = 1:U, j = 1:J)
     b⁻ = collect(fournisseurs[f].b⁻[e, j] for e = 1:E, f = 1:F, j = 1:J)
     r_u = collect(usines[u].r[e, j] for e = 1:E, u = 1:U, j = 1:J)
-    r_f = collect(fournisseurs[u].r[e, j] for e = 1:E, f = 1:F, j = 1:J)
-    cs_u = collect(usines[u].cs[e, j] for e = 1:E, u = 1:U, j = 1:J)
-    cs_f = collect(fournisseurs[f].cs[e, j] for e = 1:E, f = 1:F, j = 1:J)
-    cexc = collect(fournisseurs[f].cexc[e, j] for e = 1:E, f = 1:F, j = 1:J)
+    r_f = collect(fournisseurs[f].r[e, j] for e = 1:E, f = 1:F, j = 1:J)
+    cs_u = collect(usines[u].cs[e] for e = 1:E, u = 1:U)
+    cs_f = collect(fournisseurs[f].cs[e] for e = 1:E, f = 1:F)
+    cexc = collect(fournisseurs[f].cexc[e] for e = 1:E, f = 1:F)
     s0_u = collect(usines[u].s0[e] for e = 1:E, u = 1:U)
     s0_f = collect(fournisseurs[f].s0[e] for e = 1:E, f = 1:F)
     l_e = collect(emballages[e].l for e = 1:E)
@@ -15,16 +15,16 @@ function data(usines, fournisseurs, emballages, E, U, F, J)
 end
 
 
-function PNLE_entier(usines, fournisseurs, emballages, J, U, F, K, L, γ, CStop, CCam, d)
+function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CStop, CCam, d, Q, notrelaxed = true)
     b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc, l_e, s0_u, s0_f = data(usines, fournisseurs, emballages, E, U, F, J)
 
     model = Model(GLPK.Optimizer)
-    @variable(model, q[1:J, 1:K, 1:U+F, 1:U+F, 1:E])
-    @variable(model, x[1:J, 1:K, 1:U+F, 1:U+F], Bool)
+    @variable(model, q[1:J, 1:K, 1:U+F, 1:U+F, 1:E], integer = notrelaxed)
+    @variable(model, x[1:J, 1:K, 1:U+F, 1:U+F], Bin)
 
 
-    @variable(model, sf[1:E, 1:F, 1:J] >= 0)
-    @variable(model, su[1:E, 1:U, 1:J] >= 0)
+    @variable(model, sf[1:E, 1:F, 1:J] >= 0, integer = notrelaxed)
+    @variable(model, su[1:E, 1:U, 1:J] >= 0, integer = notrelaxed)
 
     @variable(model, z⁻[1:E, 1:U, 1:J])
     @variable(model, z⁺[1:E, 1:F, 1:J])
@@ -36,7 +36,7 @@ function PNLE_entier(usines, fournisseurs, emballages, J, U, F, K, L, γ, CStop,
     @variable(model, cost_sursf[1:E, 1:F, 1:J] >= 0)
 
     @constraint(model, [e in 1:E, f in 1:F, j in 2:J], new_sf[e, f, j] >= sf[e, f, j-1] - b⁻[e, f, j])
-    @constraint(model, [e in 1:E, f in 1:F], new_sf[e, f, 1] >= s0_f[e, f] - b⁻[e, f, j])
+    @constraint(model, [e in 1:E, f in 1:F], new_sf[e, f, 1] >= s0_f[e, f] - b⁻[e, f, 1])
 
     @constraint(model, [e in 1:E, f in 1:F, j in 1:J], sf[e, f, j] == new_sf[e, f, j] + z⁺[e, f, j])
 
@@ -53,15 +53,18 @@ function PNLE_entier(usines, fournisseurs, emballages, J, U, F, K, L, γ, CStop,
 
     @constraint(model, [j in 1:J, k in 1:K], sum(q[j, k, u, f, e]*l_e[e] for e = 1:E, u in 1:U, f in 1:(U+F)) <= L)
 
-    @constraint(model, [j in 1:J, k in 1:K, u in 1:(U+F), f in 1:(U+F)], x[j, k, u, f] >= sum(q[j, k, u, f, :]) / (sum(q[j, k, u, f, :]) + 1) )
+    @constraint(model, [j in 1:J, k in 1:K, u in 1:(U+F), f in 1:(U+F)], x[j, k, u, f] >= sum(q[j, k, u, f, :]) / Q )
 
     @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, 1:U, :]) == 1)
-    @constraint(model, [j in 1:J, k in 1:K, f in 1:(U+F), g in 1:(U+F)], sum(x[j, k, :, f] >= x[j, k, f, g]))
+    @constraint(model, [j in 1:J, k in 1:K, f in 1:(U+F), g in 1:(U+F)], sum(x[j, k, :, f]) >= x[j, k, f, g])
+    @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, :, :]) <= 4)
 
-    @objective(model, Min, sum(cost_su[e, u, j]*cs_u[e, u, j] for e in 1:E, u in 1:U, j in 1:J) + sum(cost_sf[e, f, j]*cs_f[e, f, j] for e in 1:E, f in 1:F, j in 1:J) + sum(cost_sursf[e, f, j]*cexc[e, f, j] for e in 1:E, f in 1:F, j in 1:J) + 
-    sum(x[j, k, u, f]*γ*d[u, f] for u in 1:(U+F), f in 1:(U+F)) + J*K*CCam + CStop * sum(x))
+    @objective(model, Min, sum(cost_su[e, u, j]*cs_u[e, u] for e in 1:E, u in 1:U, j in 1:J) + sum(cost_sf[e, f, j]*cs_f[e, f] for e in 1:E, f in 1:F, j in 1:J) + sum(cost_sursf[e, f, j]*cexc[e, f] for e in 1:E, f in 1:F, j in 1:J) + 
+    sum(x[j, k, u, f]*γ*d[u, f] for j in 1:J, k in 1:K, u in 1:(U+F), f in 1:(U+F)) + J*K*CCam + CStop * sum(x))
 
     optimize!(model)
+
+    @show(objective_value(model))
 end
 
 

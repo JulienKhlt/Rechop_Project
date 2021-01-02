@@ -1,4 +1,5 @@
-using JuMP, GLPK
+include("code_Julia/route.jl")
+using JuMP, Gurobi
 
 function data(usines, fournisseurs, emballages, E, U, F, J)
     b⁺ = collect(usines[u].b⁺[e, j] for e = 1:E, u = 1:U, j = 1:J)
@@ -18,25 +19,33 @@ end
 function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CStop, CCam, d, Q, notrelaxed = true)
     b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc, l_e, s0_u, s0_f = data(usines, fournisseurs, emballages, E, U, F, J)
 
-    model = Model(GLPK.Optimizer)
-    @variable(model, q[1:J, 1:K, 1:U+F, 1:U+F, 1:E], integer = notrelaxed)
+    model = Model(Gurobi.Optimizer)
+    @variable(model, q[1:J, 1:K, 1:U+F, 1:U+F, 1:E] >= 0, integer = notrelaxed)
     @variable(model, x[1:J, 1:K, 1:U+F, 1:U+F], Bin)
+    @variable(model, x_u[1:J, 1:K, 1:U], Bin)
+
 
 
     @variable(model, sf[1:E, 1:F, 1:J] >= 0, integer = notrelaxed)
     @variable(model, su[1:E, 1:U, 1:J] >= 0, integer = notrelaxed)
 
-    @variable(model, z⁻[1:E, 1:U, 1:J])
-    @variable(model, z⁺[1:E, 1:F, 1:J])
+    @variable(model, z⁻[1:E, 1:U, 1:J] >= 0)
+    @variable(model, z⁻k[1:E, 1:U, 1:J, 1:K] >= 0)
+
+    @variable(model, z⁺[1:E, 1:F, 1:J] >= 0)
 
     @variable(model, new_sf[1:E, 1:F, 1:J] >= 0)
+    @variable(model, pos[1:E, 1:F, 1:J] >= 0)
+    @variable(model, neg[1:E, 1:F, 1:J] >= 0)
 
     @variable(model, cost_su[1:E, 1:U, 1:J] >= 0)
     @variable(model, cost_sf[1:E, 1:F, 1:J] >= 0)
     @variable(model, cost_sursf[1:E, 1:F, 1:J] >= 0)
 
-    @constraint(model, [e in 1:E, f in 1:F, j in 2:J], new_sf[e, f, j] >= sf[e, f, j-1] - b⁻[e, f, j])
-    @constraint(model, [e in 1:E, f in 1:F], new_sf[e, f, 1] >= s0_f[e, f] - b⁻[e, f, 1])
+    @constraint(model, [e in 1:E, f in 1:F, j in 2:J], pos[e, f, j] == (sf[e, f, j-1] - b⁻[e, f, j]) + neg[e, f, j])
+    @constraint(model, [e in 1:E, f in 1:F], pos[e, f, 1] == (s0_f[e, f] - b⁻[e, f, 1]) + neg[e, f, 1])
+    @constraint(model, [e in 1:E, f in 1:F, j in 2:J], new_sf[e, f, j] == (sf[e, f, j-1] - b⁻[e, f, j])/2 + (pos[e, f, j] + neg[e, f, j])/2)
+    @constraint(model, [e in 1:E, f in 1:F], new_sf[e, f, 1] == (s0_f[e, f] - b⁻[e, f, 1])/2 + (pos[e, f, 1] + neg[e, f, 1])/2)
 
     @constraint(model, [e in 1:E, f in 1:F, j in 1:J], sf[e, f, j] == new_sf[e, f, j] + z⁺[e, f, j])
 
@@ -45,32 +54,104 @@ function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CSt
 
     @constraint(model, [e in 1:E, u in 1:U, j in 1:J], cost_su[e, u, j] >= su[e, u, j] - r_u[e, u, j])
     @constraint(model, [e in 1:E, f in 1:F, j in 1:J], cost_sf[e, f, j] >= sf[e, f, j] - r_f[e, f, j])
-    @constraint(model, [e in 1:E, f in 1:F, j in 2:J], cost_sursf[e, f, j] >= b⁻[e, f, j] - sf[e, f, j-1])
-    @constraint(model, [e in 1:E, f in 1:F], cost_sursf[e, f, 1] >= b⁻[e, f, 1] - s0_f[e, f])
 
-    @constraint(model, [e in 1:E, u in 1:U, j in 1:J], z⁻[e, u, j] == sum(q[j, :, u, :, e]))
-    @constraint(model, [e in 1:E, f in 1:F, j in 1:J], z⁺[e, f, j] == sum(q[j, :, :, f, e] - q[j, :, f, :, e])) 
+    @constraint(model, [j in 1:J, k in 1:K, u in 1:U], x_u[j, k, u] >= sum(x[j, k, u, :]))
+    @constraint(model, [j in 1:J, k in 1:K], sum(x_u[j, k, :]) <= 1)
+    @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] >= 0)
+    @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] >= sum(q[j, k, :, :, e]) + 2*x_u[j, k, u]*b⁺[e, u, j] - 2*b⁺[e, u, j])
+    @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] <= sum(q[j, k, :, :, e]))
+    @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] <= 2*x_u[j, k, u]*b⁺[e, u, j])
+    @constraint(model, [e in 1:E, u in 1:U, j in 1:J], z⁻[e, u, j] == sum(z⁻k[e, u, j, :]))
+    @constraint(model, [e in 1:E, f in 1:F, j in 1:J], z⁺[e, f, j] == sum(q[j, :, :, f+U, e]))  
 
     @constraint(model, [j in 1:J, k in 1:K], sum(q[j, k, u, f, e]*l_e[e] for e = 1:E, u in 1:U, f in 1:(U+F)) <= L)
 
     @constraint(model, [j in 1:J, k in 1:K, u in 1:(U+F), f in 1:(U+F)], x[j, k, u, f] >= sum(q[j, k, u, f, :]) / Q )
 
-    @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, 1:U, :]) == 1)
-    @constraint(model, [j in 1:J, k in 1:K, f in 1:(U+F), g in 1:(U+F)], sum(x[j, k, :, f]) >= x[j, k, f, g])
+    @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, 1:U, :]) <= 1)
+    @constraint(model, [j in 1:J, k in 1:K, f in U+1:(U+F)], sum(x[j, k, :, f]) >= sum(x[j, k, f, :]))
     @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, :, :]) <= 4)
+    @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, 1:U+F, 1:U]) == 0)
+    @constraint(model, [j in 1:J, k in 1:K, u in 1:U+F, f in 1:U+F], x[j, k, u, f] <= sum(x[j, k, 1:U, :]))
+    @constraint(model, [j in 1:J, k in 1:K, u in 1:U+F], x[j, k, u, u] == 0)
 
-    @objective(model, Min, sum(cost_su[e, u, j]*cs_u[e, u] for e in 1:E, u in 1:U, j in 1:J) + sum(cost_sf[e, f, j]*cs_f[e, f] for e in 1:E, f in 1:F, j in 1:J) + sum(cost_sursf[e, f, j]*cexc[e, f] for e in 1:E, f in 1:F, j in 1:J) + 
-    sum(x[j, k, u, f]*γ*d[u, f] for j in 1:J, k in 1:K, u in 1:(U+F), f in 1:(U+F)) + J*K*CCam + CStop * sum(x))
+
+    @objective(model, Min, sum(cost_su[e, u, j]*cs_u[e, u] for e in 1:E, u in 1:U, j in 1:J) + sum(cost_sf[e, f, j]*cs_f[e, f] for e in 1:E, f in 1:F, j in 1:J) + sum(neg[e, f, j]*cexc[e, f] for e in 1:E, f in 1:F, j in 1:J) + 
+    sum(x[j, k, u, f]*γ*d[u, f] for j in 1:J, k in 1:K, u in 1:(U+F), f in 1:(U+F)) + CCam*sum(x[j, k, u, f] for j in 1:J, k in 1:K, u in 1:U, f in 1:(U+F)) + CStop * sum(x))
 
     optimize!(model)
-
     @show(objective_value(model))
+
+    routes = Route[]
+    R = 1
+    for j in 1:J
+        for k in 1:K
+            stops = RouteStop[]
+            Fact = 0
+            usi = 0
+            facto1 = 0
+            facto2 = 0
+            for u in 1:U
+                for f in 1:(U+F)
+                    if (value(x[j, k, u, f]) == 1)
+                        usi = u
+                        facto1 = f
+                        Fact += 1
+                        facto2 = find(x, facto1, j, k, U, F)
+                        Q = creation_Q(q, E, j, k, usi, facto1)
+                        push!(stops, RouteStop(f = facto1-U, Q = Q))
+                        println("facto1 = ", facto1)
+                        println("facto2 = ", facto2)
+                        break
+                    end
+                end
+            end
+            if (Fact == 1)
+                if (facto2 >= 0)
+                    Fact += 1
+                    facto3 = find(x, facto2, j, k, U, F)
+                    println("facto3 = ", facto3)
+                    Q = creation_Q(q, E, j, k, facto1, facto2)
+                    push!(stops, RouteStop(f = facto2-U, Q = Q))
+                    if (facto3 >= 0)
+                        Fact += 1
+                        facto4 = find(x, facto3, j, k, U, F)
+                        println("facto4 = ", facto4)
+                        Q = creation_Q(q, E, j, k, facto2, facto3)
+                        push!(stops, RouteStop(f = facto3-U, Q = Q))
+                        if (facto4 >= 0)
+                            Fact += 1
+                            Q = creation_Q(q, E, j, k, facto3, facto4)
+                            push!(stops, RouteStop(f = facto4-U, Q = Q))
+                        end
+                    end
+                end
+            end
+            if (Fact > 0)
+                push!(routes, Route(r=R, j = j, x = 1, u = usi, F = Fact, stops = stops))
+                R += 1
+            end
+        end
+    end
+    return R-1, routes
 end
 
+function creation_Q(q, E, j, k, u, f1)
+    Q = []
+    for e in 1:E
+        push!(Q, value(q[j, k, u, f1, e]))
+    end
+    return Q
+end
 
-
-
-
+function find(x, f, j, k, U, F)
+    for g in 1:(U+F)
+        if (value(x[j, k, f, g]) == 1)
+            return g
+        end
+    end
+    return -1
+end
 
 
 

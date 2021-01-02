@@ -116,8 +116,12 @@ if abspath(PROGRAM_FILE) == @__FILE__
     filename = "Data/petite.csv"
     filepath = joinpath(@__DIR__, filename)
     petite_instance = lire_instance(filepath)
-    K = 3
-    R, routes = PNLE_entier(petite_instance.usines, petite_instance.fournisseurs, petite_instance.emballages, petite_instance.J, petite_instance.U, petite_instance.F, petite_instance.E, K, petite_instance.L, petite_instance.γ, petite_instance.cstop, petite_instance.ccam, petite_instance.graphe.d, 100)
+    K = 2
+    R, routes = PNLE_entier(petite_instance.usines, petite_instance.fournisseurs, petite_instance.emballages, petite_instance.J, petite_instance.U, petite_instance.F, petite_instance.E, K, petite_instance.L, petite_instance.γ, petite_instance.cstop, petite_instance.ccam, petite_instance.graphe.d)
+    # R = 1
+    # routes = [Route(r=1, j = 1, x = 1, u = 1, F = 1, stops = [RouteStop(f = 1, Q = [4, 2])]), Route(r=2, j = 2, x = 1, u = 2, F = 2, stops = [RouteStop(f = 2, Q = [0, 5]), RouteStop(f = 3, Q = [4, 1])])]
+    # routes = [Route(r=1, j = 2, x = 1, u = 2, F = 3, stops = [RouteStop(f = 2, Q = [0, 5]), RouteStop(f = 3, Q = [4, 1]), RouteStop(f = 1, Q = [2, 2])])]
+    
     sol = Solution(R=R, routes=routes)
     show(sol)
     println(feasibility(sol, petite_instance))

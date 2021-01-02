@@ -1,7 +1,7 @@
 include("code_Julia/route.jl")
 using JuMP, Gurobi
 
-function data(usines, fournisseurs, emballages, E, U, F, J)
+function data(usines, fournisseurs, emballages, E, U, F, J, L)
     b⁺ = collect(usines[u].b⁺[e, j] for e = 1:E, u = 1:U, j = 1:J)
     b⁻ = collect(fournisseurs[f].b⁻[e, j] for e = 1:E, f = 1:F, j = 1:J)
     r_u = collect(usines[u].r[e, j] for e = 1:E, u = 1:U, j = 1:J)
@@ -12,13 +12,20 @@ function data(usines, fournisseurs, emballages, E, U, F, J)
     s0_u = collect(usines[u].s0[e] for e = 1:E, u = 1:U)
     s0_f = collect(fournisseurs[f].s0[e] for e = 1:E, f = 1:F)
     l_e = collect(emballages[e].l for e = 1:E)
-    return b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc, l_e, s0_u, s0_f
+    number_of_e = []
+    for e in 1:E
+        push!(number_of_e, ceil(L/l_e[e]))
+    end
+    return b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc, l_e, s0_u, s0_f, number_of_e
 end
 
 
-function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CStop, CCam, d, Q, notrelaxed = true)
-    b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc, l_e, s0_u, s0_f = data(usines, fournisseurs, emballages, E, U, F, J)
 
+
+function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CStop, CCam, d, notrelaxed = true)
+    b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc, l_e, s0_u, s0_f, number_of_e = data(usines, fournisseurs, emballages, E, U, F, J, L)
+
+    M = maximum(number_of_e)
     model = Model(Gurobi.Optimizer)
     @variable(model, q[1:J, 1:K, 1:U+F, 1:U+F, 1:E] >= 0, integer = notrelaxed)
     @variable(model, x[1:J, 1:K, 1:U+F, 1:U+F], Bin)
@@ -40,7 +47,6 @@ function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CSt
 
     @variable(model, cost_su[1:E, 1:U, 1:J] >= 0)
     @variable(model, cost_sf[1:E, 1:F, 1:J] >= 0)
-    @variable(model, cost_sursf[1:E, 1:F, 1:J] >= 0)
 
     @constraint(model, [e in 1:E, f in 1:F, j in 2:J], pos[e, f, j] == (sf[e, f, j-1] - b⁻[e, f, j]) + neg[e, f, j])
     @constraint(model, [e in 1:E, f in 1:F], pos[e, f, 1] == (s0_f[e, f] - b⁻[e, f, 1]) + neg[e, f, 1])
@@ -58,22 +64,25 @@ function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CSt
     @constraint(model, [j in 1:J, k in 1:K, u in 1:U], x_u[j, k, u] >= sum(x[j, k, u, :]))
     @constraint(model, [j in 1:J, k in 1:K], sum(x_u[j, k, :]) <= 1)
     @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] >= 0)
-    @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] >= sum(q[j, k, :, :, e]) + 2*x_u[j, k, u]*b⁺[e, u, j] - 2*b⁺[e, u, j])
+    @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] >= sum(q[j, k, :, :, e]) + x_u[j, k, u]*M - M)
     @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] <= sum(q[j, k, :, :, e]))
-    @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] <= 2*x_u[j, k, u]*b⁺[e, u, j])
+    @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] <= x_u[j, k, u]*M)
     @constraint(model, [e in 1:E, u in 1:U, j in 1:J], z⁻[e, u, j] == sum(z⁻k[e, u, j, :]))
     @constraint(model, [e in 1:E, f in 1:F, j in 1:J], z⁺[e, f, j] == sum(q[j, :, :, f+U, e]))  
 
     @constraint(model, [j in 1:J, k in 1:K], sum(q[j, k, u, f, e]*l_e[e] for e = 1:E, u in 1:U, f in 1:(U+F)) <= L)
 
-    @constraint(model, [j in 1:J, k in 1:K, u in 1:(U+F), f in 1:(U+F)], x[j, k, u, f] >= sum(q[j, k, u, f, :]) / Q )
+    @constraint(model, [j in 1:J, k in 1:K, u in 1:(U+F), f in 1:(U+F)], x[j, k, u, f] >= sum(q[j, k, u, f, :]) / M )
 
-    @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, 1:U, :]) <= 1)
+    # @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, 1:U, :]) <= 1)
     @constraint(model, [j in 1:J, k in 1:K, f in U+1:(U+F)], sum(x[j, k, :, f]) >= sum(x[j, k, f, :]))
     @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, :, :]) <= 4)
     @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, 1:U+F, 1:U]) == 0)
     @constraint(model, [j in 1:J, k in 1:K, u in 1:U+F, f in 1:U+F], x[j, k, u, f] <= sum(x[j, k, 1:U, :]))
-    @constraint(model, [j in 1:J, k in 1:K, u in 1:U+F], x[j, k, u, u] == 0)
+    
+    # @constraint(model, [j in 1:J, k in 1:K, u in 1:U+F], x[j, k, u, u] == 0)
+    @constraint(model, [j in 1:J, k in 1:K, u in 1:U+F, f in 1:U+F], x[j, k, u, f] <= 1 - x[j, k, f, u])
+    @constraint(model, [j in 1:J, k in 1:K, u in 1:U+F, f in 1:U+F, g in 1:U+F], x[j, k, u, f] + x[j, k, f, g] - 1 <= 1 - x[j, k, g, u])
 
 
     @objective(model, Min, sum(cost_su[e, u, j]*cs_u[e, u] for e in 1:E, u in 1:U, j in 1:J) + sum(cost_sf[e, f, j]*cs_f[e, f] for e in 1:E, f in 1:F, j in 1:J) + sum(neg[e, f, j]*cexc[e, f] for e in 1:E, f in 1:F, j in 1:J) + 

@@ -6,8 +6,8 @@ mutable struct Cluster
 end
 
 
-function opti_cluster(cl::Cluster)::Vector{Routes}
-    # On suppose le résultat optimal
+function opti_cluster(cl::Cluster, emballages, J, K, L, γ, CStop, CCam, d)::Vector{Route}
+    return PNLE_entier([cl.U], cl.fourns, emballages, J, 1, size(cl.fourns, 1), size(emballages, 1), K, L, γ, CStop, CCam, d)[2]
 end
 
 

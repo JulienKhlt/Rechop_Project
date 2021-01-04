@@ -68,3 +68,29 @@ function compute_stocks(solution::Solution, instance::Instance)
     
     return su, sf
 end
+
+function ecrire_route_stop(route_stop)
+    line = string(" f ", route_stop.f-1)
+    for i in 1:size(route_stop.Q, 1)
+        line = string(line, " e ", i-1, " q ", route_stop.Q[i])
+    end
+    return line
+end
+
+function ecrire_routes(route)
+    line = string("r ", route.r-1, " j ", route.j-1, " x ", route.x, " u ", route.u-1, " F ", route.F)
+    for i in 1:size(route.stops, 1)
+        line = string(line, ecrire_route_stop(route.stops[i]))
+    end
+    line = string(line, "\n")
+    return line
+end
+
+function ecrire_solution(path::String, Sol::Solution)
+    open(path, "w") do file
+        write(file, string("R ", Sol.R, "\n"))
+        for i in 1:Sol.R
+            write(file, ecrire_routes(Sol.routes[i]))
+        end
+    end
+end

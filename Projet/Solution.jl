@@ -118,13 +118,18 @@ if abspath(PROGRAM_FILE) == @__FILE__
     filepath = joinpath(@__DIR__, filename)
     petite_instance = lire_instance(filepath)
     K = 1
-    # R, routes = PNLE_entier(petite_instance.usines, petite_instance.fournisseurs, petite_instance.emballages, petite_instance.J, petite_instance.U, petite_instance.F, petite_instance.E, K, petite_instance.L, petite_instance.γ, petite_instance.cstop, petite_instance.ccam, petite_instance.graphe.d)
-    R = 3
-    clu = Cluster(U = petite_instance.usines[1], fourns = petite_instance.fournisseurs)
-    routes = opti_cluster(clu, petite_instance.emballages, petite_instance.J, K, petite_instance.L, petite_instance.γ,  petite_instance.cstop, petite_instance.ccam, petite_instance.graphe.d)
+    R, routes = PNLE_entier(petite_instance.usines, petite_instance.fournisseurs, petite_instance.emballages, petite_instance.J, petite_instance.U, petite_instance.F, petite_instance.E, K, petite_instance.L, petite_instance.γ, petite_instance.cstop, petite_instance.ccam, petite_instance.graphe.d)
+    # R = 1
+    # clu = Cluster(U = petite_instance.usines[1], fourns = petite_instance.fournisseurs)
+    # routes = opti_cluster(clu, petite_instance.emballages, petite_instance.J, K, petite_instance.L, petite_instance.γ,  petite_instance.cstop, petite_instance.ccam, petite_instance.graphe.d)
     sol = Solution(R=R, routes=routes)
     show(sol)
     println(feasibility(sol, petite_instance))
     cost(sol, petite_instance, verbose=true)
+    ecrire_solution("test.txt", sol)
     # solution(filepath)
+    Sol = lire_solution("test.txt")
+    show(Sol)
+    println(feasibility(Sol, petite_instance))
+    cost(Sol, petite_instance, verbose=true)
 end

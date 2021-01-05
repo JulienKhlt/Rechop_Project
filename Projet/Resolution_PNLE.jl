@@ -45,11 +45,7 @@ function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CSt
 
     # On calcule une borne sup du nombre d'emballages que l'on peut mettre dans un camion
     M = maximum(number_of_e)
-
-
-    model = Model(Gurobi.Optimizer)
-
-    # Les quantités envoyées par jour, par camion sur les arêtes
+    model = Model(optimizer_with_attributes(Gurobi.Optimizer,"TimeLimit"=>300,"OutputFlag"=>1))
     @variable(model, q[1:J, 1:K, 1:U+F, 1:U+F, 1:E] >= 0, integer = notrelaxed)
     # Les variables binéaires qui indiquent si l'arrête (i,j) est empruntée
     @variable(model, x[1:J, 1:K, 1:U+F, 1:U+F], Bin)

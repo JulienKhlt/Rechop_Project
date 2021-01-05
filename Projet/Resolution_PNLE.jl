@@ -54,7 +54,7 @@ function data(usines, fournisseurs, emballages, ind_E, U, F, ind_J, L)
     
     # maximum d'emballages e que l'on peut mettre dans un camion
     number_of_e = []
-    for e in ind_E
+    for e in 1:size(ind_E, 1)
         push!(number_of_e, ceil(L/l_e[e]))
     end
     return b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc, l_e, number_of_e

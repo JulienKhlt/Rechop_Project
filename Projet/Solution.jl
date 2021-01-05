@@ -21,9 +21,6 @@ function solution(name_inst)
 
     Sol = creation_livraison(usines, fournisseurs, emballages, J, L)
     show(Sol)
-    su, sf = compute_stocks(Sol, instance)
-    println("su ", su)
-    println("sf ", sf)
     println(feasibility(Sol, instance))
     cost(Sol, instance, verbose=true)
 end

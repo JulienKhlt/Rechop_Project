@@ -2,16 +2,31 @@ include("code_Julia/route.jl")
 using JuMP, Gurobi
 
 function data(usines, fournisseurs, emballages, E, U, F, J, L)
+    # Quantité reçue par les usines
     b⁺ = collect(usines[u].b⁺[e, j] for e = 1:E, u = 1:U, j = 1:J)
+    
+    # Quantité dont ont besoin les usines
     b⁻ = collect(fournisseurs[f].b⁻[e, j] for e = 1:E, f = 1:F, j = 1:J)
+    
+    # limites de stocks des usines, fournisseurs
     r_u = collect(usines[u].r[e, j] for e = 1:E, u = 1:U, j = 1:J)
     r_f = collect(fournisseurs[f].r[e, j] for e = 1:E, f = 1:F, j = 1:J)
+    
+    # cout de stockage excédentaire
     cs_u = collect(usines[u].cs[e] for e = 1:E, u = 1:U)
     cs_f = collect(fournisseurs[f].cs[e] for e = 1:E, f = 1:F)
+
+    # cout d'envoi des cartons
     cexc = collect(fournisseurs[f].cexc[e] for e = 1:E, f = 1:F)
+
+    # Stockage initial des usines, fournisseurs
     s0_u = collect(usines[u].s0[e] for e = 1:E, u = 1:U)
     s0_f = collect(fournisseurs[f].s0[e] for e = 1:E, f = 1:F)
+    
+    # longueur des emballages
     l_e = collect(emballages[e].l for e = 1:E)
+    
+    # maximum d'emballages e que l'on peut mettre dans un camion
     number_of_e = []
     for e in 1:E
         push!(number_of_e, ceil(L/l_e[e]))
@@ -23,64 +38,87 @@ end
 
 
 function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CStop, CCam, d, notrelaxed = true)
+    # On résout le PNLE avec K camions disponibles par jour de manière optimale
+    
+    # On récupère les données liées à notre instance ou cluster
     b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc, l_e, s0_u, s0_f, number_of_e = data(usines, fournisseurs, emballages, E, U, F, J, L)
 
+    # On calcule une borne sup du nombre d'emballages que l'on peut mettre dans un camion
     M = maximum(number_of_e)
+
+
     model = Model(Gurobi.Optimizer)
+
+    # Les quantités envoyées par jour, par camion sur les arêtes
     @variable(model, q[1:J, 1:K, 1:U+F, 1:U+F, 1:E] >= 0, integer = notrelaxed)
+    # Les variables binéaires qui indiquent si l'arrête (i,j) est empruntée
     @variable(model, x[1:J, 1:K, 1:U+F, 1:U+F], Bin)
+    # Les variables binéaires qui indiquent si le camion part de l'usine u ou pas
     @variable(model, x_u[1:J, 1:K, 1:U], Bin)
 
 
-
+    # Le stockage dans les fournisseurs, usines
     @variable(model, sf[1:E, 1:F, 1:J] >= 0, integer = notrelaxed)
     @variable(model, su[1:E, 1:U, 1:J] >= 0, integer = notrelaxed)
 
+    # Les quantités qui quittent l'usine u, et celle par camion
     @variable(model, z⁻[1:E, 1:U, 1:J] >= 0)
     @variable(model, z⁻k[1:E, 1:U, 1:J, 1:K] >= 0)
 
+    # Les quantités qui entre dans un fournisseurs
     @variable(model, z⁺[1:E, 1:F, 1:J] >= 0)
 
+    # Le max dans le stock des fournisseurs, neg est la quantité que l'on doit envoyées en utilisant des cartons
     @variable(model, new_sf[1:E, 1:F, 1:J] >= 0)
     @variable(model, pos[1:E, 1:F, 1:J] >= 0)
     @variable(model, neg[1:E, 1:F, 1:J] >= 0)
 
+    # Le max des stocks
     @variable(model, cost_su[1:E, 1:U, 1:J] >= 0)
     @variable(model, cost_sf[1:E, 1:F, 1:J] >= 0)
 
+    # Calcul du max du stock des fournisseurs
     @constraint(model, [e in 1:E, f in 1:F, j in 2:J], pos[e, f, j] == (sf[e, f, j-1] - b⁻[e, f, j]) + neg[e, f, j])
     @constraint(model, [e in 1:E, f in 1:F], pos[e, f, 1] == (s0_f[e, f] - b⁻[e, f, 1]) + neg[e, f, 1])
     @constraint(model, [e in 1:E, f in 1:F, j in 2:J], new_sf[e, f, j] == (sf[e, f, j-1] - b⁻[e, f, j])/2 + (pos[e, f, j] + neg[e, f, j])/2)
     @constraint(model, [e in 1:E, f in 1:F], new_sf[e, f, 1] == (s0_f[e, f] - b⁻[e, f, 1])/2 + (pos[e, f, 1] + neg[e, f, 1])/2)
 
+    # Calcul des stocks
     @constraint(model, [e in 1:E, f in 1:F, j in 1:J], sf[e, f, j] == new_sf[e, f, j] + z⁺[e, f, j])
 
     @constraint(model, [e in 1:E, u in 1:U, j in 2:J], su[e, u, j] == su[e, u, j-1] + b⁺[e, u, j] - z⁻[e, u, j])
     @constraint(model, [e in 1:E, u in 1:U], su[e, u, 1] == s0_u[e, u] + b⁺[e, u, 1] - z⁻[e, u, 1])
 
+    # Calcul des max des stocks
     @constraint(model, [e in 1:E, u in 1:U, j in 1:J], cost_su[e, u, j] >= su[e, u, j] - r_u[e, u, j])
     @constraint(model, [e in 1:E, f in 1:F, j in 1:J], cost_sf[e, f, j] >= sf[e, f, j] - r_f[e, f, j])
 
+    # Création des x_u
     @constraint(model, [j in 1:J, k in 1:K, u in 1:U], x_u[j, k, u] >= sum(x[j, k, u, :]))
     @constraint(model, [j in 1:J, k in 1:K], sum(x_u[j, k, :]) <= 1)
+
+    # Linéarisation de z⁻k = x_u * q
     @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] >= 0)
     @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] >= sum(q[j, k, :, :, e]) + x_u[j, k, u]*M - M)
     @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] <= sum(q[j, k, :, :, e]))
     @constraint(model, [e in 1:E, u in 1:U, j in 1:J, k in 1:K], z⁻k[e, u, j, k] <= x_u[j, k, u]*M)
+
+    # Calcul des z
     @constraint(model, [e in 1:E, u in 1:U, j in 1:J], z⁻[e, u, j] == sum(z⁻k[e, u, j, :]))
     @constraint(model, [e in 1:E, f in 1:F, j in 1:J], z⁺[e, f, j] == sum(q[j, :, :, f+U, e]))  
 
+    # Contraintes d'emballages
     @constraint(model, [j in 1:J, k in 1:K], sum(q[j, k, u, f, e]*l_e[e] for e = 1:E, u in 1:(U+F), f in 1:(U+F)) <= L)
 
+    # Calcul des x
     @constraint(model, [j in 1:J, k in 1:K, u in 1:(U+F), f in 1:(U+F)], x[j, k, u, f] >= sum(q[j, k, u, f, :]) / M )
 
-    # @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, 1:U, :]) <= 1)
+    # Création des routes sans cycles possibles
     @constraint(model, [j in 1:J, k in 1:K, f in U+1:(U+F)], sum(x[j, k, :, f]) >= sum(x[j, k, f, :]))
     @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, :, :]) <= 4)
     @constraint(model, [j in 1:J, k in 1:K], sum(x[j, k, 1:U+F, 1:U]) == 0)
     @constraint(model, [j in 1:J, k in 1:K, u in 1:U+F, f in 1:U+F], x[j, k, u, f] <= sum(x[j, k, 1:U, :]))
     
-    # @constraint(model, [j in 1:J, k in 1:K, u in 1:U+F], x[j, k, u, u] == 0)
     @constraint(model, [j in 1:J, k in 1:K, u in 1:U+F, f in 1:U+F], x[j, k, u, f] <= 1 - x[j, k, f, u])
     @constraint(model, [j in 1:J, k in 1:K, u in 1:U+F, f in 1:U+F, g in 1:U+F], x[j, k, u, f] + x[j, k, f, g] - 1 <= 1 - x[j, k, g, u])
 
@@ -90,6 +128,8 @@ function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CSt
 
     optimize!(model)
     @show(objective_value(model))
+
+    # Création et renvoit des routes
 
     routes = Route[]
     R = 1
@@ -109,8 +149,6 @@ function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CSt
                         facto2 = find(x, facto1, j, k, U, F)
                         Q = creation_Q(q, E, j, k, usi, facto1)
                         push!(stops, RouteStop(f = facto1-U, Q = Q))
-                        println("facto1 = ", facto1)
-                        println("facto2 = ", facto2)
                         break
                     end
                 end
@@ -119,13 +157,11 @@ function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CSt
                 if (facto2 >= 0)
                     Fact += 1
                     facto3 = find(x, facto2, j, k, U, F)
-                    println("facto3 = ", facto3)
                     Q = creation_Q(q, E, j, k, facto1, facto2)
                     push!(stops, RouteStop(f = facto2-U, Q = Q))
                     if (facto3 >= 0)
                         Fact += 1
                         facto4 = find(x, facto3, j, k, U, F)
-                        println("facto4 = ", facto4)
                         Q = creation_Q(q, E, j, k, facto2, facto3)
                         push!(stops, RouteStop(f = facto3-U, Q = Q))
                         if (facto4 >= 0)

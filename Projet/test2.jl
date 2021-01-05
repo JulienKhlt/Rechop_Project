@@ -12,15 +12,24 @@ clust2 = Cluster(U = instance.usines[2], fourns = [instance.fournisseurs[i] for 
 
 K=3
 
-routes1 = opti_cluster(clust1,instance.emballages,instance.J,K,instance.L, instance.γ,instance.cstop,instance.ccam, instance.graphe.d)
+show(instance)
+routes1 = opti_cluster(clust1, instance.emballages, instance.J, 1:instance.J, 1:instance.E, instance.U, K, instance.L, instance.γ, instance.cstop, instance.ccam, instance.graphe.d)
 R1 =size(routes1,1)
 
-routes2 = opti_cluster(clust2,instance.emballages,instance.J,K,instance.L, instance.γ,instance.cstop,instance.ccam, instance.graphe.d)
+println(R1)
+show(routes1)
+
+routes2 = opti_cluster(clust2, instance.emballages, instance.J, 1:instance.J, 1:instance.E, instance.U, K, instance.L, instance.γ, instance.cstop, instance.ccam, instance.graphe.d)
 R2 =size(routes2,1)
 
-sol = Solution(R=R1+R2, routes=vcat(routes1,routes2))
+println(R2)
+show(routes2)
+
+sol = Solution(R=R2, routes=routes2)
+
+# sol = Solution(R=R1+R2, routes=vcat(routes1,routes2))
 
 show(sol)
 
 println(feasibility(sol, instance))
-cost(sol, instance, verbose=false)
+println(cost(sol, instance, verbose=false))

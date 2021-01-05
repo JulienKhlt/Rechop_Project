@@ -26,7 +26,7 @@ function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, K, L, γ, CSt
     b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc, l_e, s0_u, s0_f, number_of_e = data(usines, fournisseurs, emballages, E, U, F, J, L)
 
     M = maximum(number_of_e)
-    model = Model(Gurobi.Optimizer)
+    model = Model(optimizer_with_attributes(Gurobi.Optimizer,"TimeLimit"=>300,"OutputFlag"=>1))
     @variable(model, q[1:J, 1:K, 1:U+F, 1:U+F, 1:E] >= 0, integer = notrelaxed)
     @variable(model, x[1:J, 1:K, 1:U+F, 1:U+F], Bin)
     @variable(model, x_u[1:J, 1:K, 1:U], Bin)

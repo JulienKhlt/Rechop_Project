@@ -11,6 +11,7 @@ include("code_Julia/feasibility.jl")
 include("Resolution_PNLE.jl")
 include("cluster.jl")
 include("borne_inf.jl")
+include("New_PNLE.jl")
 
 function solution(name_inst)
     instance = lire_instance(name_inst)

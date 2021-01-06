@@ -1,6 +1,6 @@
 include("Solution.jl")
 
-filename = "Data/espagne.csv"
+filename = "Data/europe.csv"
 filepath = joinpath(@__DIR__, filename)
 instance = lire_instance(filepath)
 
@@ -81,18 +81,22 @@ global K = 6
 global tot_cost = 0
 
 println()
-println("EJK(F+U)2 = ",27*21*K*(1+length(clusters[4].fourns))^2)
-println("F = ",length(clusters[4].fourns))
+# println("EJK(F+U)2 = ",27*21*K*(1+length(clusters[4].fourns))^2)
+println("F = ",length(clusters[16].fourns))
 println()
-routes = opti_cluster(clusters[4], instance.emballages, 7 , 1:7, 1:27, instance.U, K, instance.L, instance.γ, instance.cstop, instance.ccam, instance.graphe.d)
-R = length(routes)
+Q = new_opti_cluster(clusters[16], instance.emballages, instance.J, 1:instance.J, 1:instance.E)
+t1 = size(Q, 1)
+t2 = size(Q, 2)
+t3 = size(Q, 3)
+t4 = size(Q, 4)
 
-sol = Solution(R=R, routes=routes)
+#sol = Solution(R=R, routes=routes)
 
-show(sol)
+#println(Q)
+println(t1," ",t2," ",t3," ",t4)
 
 #println(feasibility(sol, instance))
-global tot_cost += cost(sol, instance, verbose=false)
+#global tot_cost += cost(sol, instance, verbose=false)
 
 # for clust in clusters
 #     for sem in 1:3

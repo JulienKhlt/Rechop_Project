@@ -1,4 +1,5 @@
 include("Solution.jl")
+include("New_PNLE.jl")
 
 
 
@@ -13,13 +14,13 @@ clust2 = Cluster(U = instance.usines[2], fourns = [instance.fournisseurs[i] for 
 K=3
 
 show(instance)
-routes1 = opti_cluster(clust1, instance.emballages, instance.J, 1:instance.J, 1:instance.E, instance.U, K, instance.L, instance.γ, instance.cstop, instance.ccam, instance.graphe.d)
+routes1 = new_opti_cluster(clust1, instance.emballages, instance.J, 1:instance.J, 1:instance.E)
 R1 =size(routes1,1)
 
 println(R1)
 show(routes1)
 
-routes2 = opti_cluster(clust2, instance.emballages, instance.J, 1:instance.J, 1:instance.E, instance.U, K, instance.L, instance.γ, instance.cstop, instance.ccam, instance.graphe.d)
+routes2 = new_opti_cluster(clust2, instance.emballages, instance.J, 1:instance.J, 1:instance.E)
 R2 =size(routes2,1)
 
 println(R2)

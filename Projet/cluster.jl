@@ -12,6 +12,17 @@ function opti_cluster(cl::Cluster, emballages, J, ind_J, ind_E, U0, K, L, γ, CS
     return PNLE_entier([cl.U], cl.fourns, emballages, J, 1, size(cl.fourns, 1), size(ind_E, 1), ind_J, [cl.U.u], collect(cl.fourns[i].f for i in 1:size(cl.fourns, 1)), ind_E, size(emballages, 1), K, L, γ, CStop, CCam, crea_d(cl, d, U0), s0_u, s0_f)[2]
 end
 
+function new_opti_cluster(cl::Cluster, emballages, J, ind_J, ind_E)
+    # Optimise sur un cluster sans qu'on lui donne de stock initial, le PNLE peut renvoyer le stock final si besoin
+    s0_u, s0_f = stock_clu_ini(cl::Cluster, ind_E)
+    return New_PNLE_entier([cl.U], cl.fourns, emballages, J, 1, size(cl.fourns, 1), size(ind_E, 1), ind_J, ind_E, s0_u, s0_f)
+end
+
+function new_opti_cluster(cl::Cluster, emballages, J, ind_J, ind_E, s0_u, s0_f)
+    # Optimise sur un cluster sans qu'on lui donne de stock initial, le PNLE peut renvoyer le stock final si besoin
+    return New_PNLE_entier([cl.U], cl.fourns, emballages, J, 1, size(cl.fourns, 1), size(ind_E, 1), ind_J, ind_E, s0_u, s0_f)
+end
+
 function opti_cluster(cl::Cluster, emballages, J, ind_J, ind_E, U0, K, L, γ, CStop, CCam, d, s0_u, s0_f)::Vector{Route}
     # Optimise sur un cluster en lui donnant un stock initial utile si on décompose en jour, le PNLE peut renvoyer le stock final si besoin
     return PNLE_entier([cl.U], cl.fourns, emballages, J, 1, size(cl.fourns, 1), size(ind_E, 1), ind_J, [cl.U.u], collect(cl.fourns[i].f for i in 1:size(cl.fourns, 1)), ind_E, size(emballages, 1), K, L, γ, CStop, CCam, crea_d(cl, d, U0), s0_u, s0_f)[2]

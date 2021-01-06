@@ -61,6 +61,27 @@ function data(usines, fournisseurs, emballages, ind_E, U, F, ind_J, L)
 end
 
 
+function data(usines, fournisseurs, emballages, ind_E, U, F, ind_J)
+    # Quantité reçue par les usines
+    b⁺ = collect(usines[u].b⁺[e, j] for e in ind_E, u in 1:U, j in ind_J)
+    
+    # Quantité dont ont besoin les usines
+    b⁻ = collect(fournisseurs[f].b⁻[e, j] for e in ind_E, f in 1:F, j in ind_J)
+    
+    # limites de stocks des usines, fournisseurs
+    r_u = collect(usines[u].r[e, j] for e in ind_E, u in 1:U, j in ind_J)
+    r_f = collect(fournisseurs[f].r[e, j] for e in ind_E, f in 1:F, j in ind_J)
+    
+    # cout de stockage excédentaire
+    cs_u = collect(usines[u].cs[e] for e in ind_E, u in 1:U)
+    cs_f = collect(fournisseurs[f].cs[e] for e in ind_E, f in 1:F)
+
+    # cout d'envoi des cartons
+    cexc = collect(fournisseurs[f].cexc[e] for e in ind_E, f in 1:F)
+
+    return b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc
+end
+
 
 
 function PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, ind_J, ind_U, ind_F, ind_E, E0, K, L, γ, CStop, CCam, d, s0_u, s0_f, notrelaxed = true)

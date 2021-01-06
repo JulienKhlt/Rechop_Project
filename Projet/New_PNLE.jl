@@ -4,10 +4,8 @@ function New_PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, ind_J, in
     # On résout le PNLE avec K camions disponibles par jour de manière optimale
     
     # On récupère les données liées à notre instance ou cluster
-    b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc, l_e, number_of_e = data(usines, fournisseurs, emballages, ind_E, U, F, ind_J, L)
-
-    # On calcule une borne sup du nombre d'emballages que l'on peut mettre dans un camion
-    M = maximum(number_of_e)
+    b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc = data(usines, fournisseurs, emballages, ind_E, U, F, ind_J)
+    
     model = Model(optimizer_with_attributes(Gurobi.Optimizer,"TimeLimit"=>100,"OutputFlag"=>1))
     @variable(model, q[1:J, 1:U, 1:F, 1:E] >= 0, integer = notrelaxed)
 
@@ -68,3 +66,4 @@ function New_PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, ind_J, in
         end
     end
     return Q
+end

@@ -6,7 +6,7 @@ function New_PNLE_entier(usines, fournisseurs, emballages, J, U, F, E, ind_J, in
     # On récupère les données liées à notre instance ou cluster
     b⁺, b⁻, r_u, r_f, cs_u, cs_f, cexc = data(usines, fournisseurs, emballages, ind_E, U, F, ind_J)
     
-    model = Model(optimizer_with_attributes(Gurobi.Optimizer,"TimeLimit"=>100,"OutputFlag"=>1))
+    model = Model(optimizer_with_attributes(Gurobi.Optimizer,"TimeLimit"=>100,"OutputFlag"=>0))
     @variable(model, q[1:J, 1:U, 1:F, 1:E] >= 0, integer = notrelaxed)
 
 

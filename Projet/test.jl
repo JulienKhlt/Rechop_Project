@@ -1,25 +1,47 @@
-include("divide_clean.jl")
+include("Solution.jl")
+
+function test()
+    filename = "Data/europe.csv"
+    filepath = joinpath(@__DIR__, filename)
+    instance = lire_instance(filepath)
 
 
+    clusters = make_clusters_1_usine(instance)
 
-filename = "Data/maroc.csv"
-filepath = joinpath(@__DIR__, filename)
-instance = lire_instance(filepath)
-instances = instances_par_emballage(instance)
+    for clust in clusters
+        print(clust.U.u, "     ")
+        for fourn in clust.fourns
+            print(fourn.f," ")
+        end
+        println()
+    end
 
+    routes = []
 
-K = 4
-global tot_cost = 0
-for instance1el in instances
-    instance1 = instance1el.instance
-    show(instance1)
+    for clust in clusters
+        Q = new_opti_cluster(clust, instance.emballages, instance.J, 1:instance.J, 1:instance.E)
 
-    R, routes = PNLE_entier(instance1.usines, instance1.fournisseurs, instance1.emballages, instance1.J, instance1.U, instance1.F, instance1.E, K, instance1.L, instance1.γ, instance1.cstop, instance1.ccam, instance1.graphe.d)
-    sol = Solution(R=R, routes=routes)
-    # show(sol)
-    # println(feasibility(sol, instance1))
-    global tot_cost += cost(sol, instance1, verbose=false)
-    println(tot_cost)
+        ind_F = map(fourn->fourn.f,clust.fourns)
+        d = new_d(instance.graphe.d, clust.U.u:clust.U.u, ind_F, 1, length(ind_F), instance.U)
+        push!(routes, remplissage_camion(Q, d, clust.U.u:clust.U.u, ind_F, 1:instance.J, 1:instance.E, instance.E, instance.emballages,instance.L)...)
+    end
+
+    sol = Solution(R = length(routes),routes=routes)
+    show(sol)
+    println(feasibility(sol,instance))
+    println(cost(sol,instance,verbose=false))
+
 end
 
-println(tot_cost)
+
+function test2()
+    filename = "Data/europe.csv"
+    filepath = joinpath(@__DIR__, filename)
+    instance = lire_instance(filepath)
+
+    clusters = make_clusters_1_usine(instance)
+
+    recuit(instance,20,clusters)[2:3]
+end
+
+test2()

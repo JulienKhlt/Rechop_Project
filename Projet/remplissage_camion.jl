@@ -31,12 +31,7 @@ function found_fournisseurs(Q, d, u, j)
     E = size(Q,4)
     T_route = 4
 
-    #duree_anticipation = min(4,J-j)
-
-    stocksj = [] #A ajouter
-
     Qj = Q[j,:,:,:]  # A mettre a jour avec les stocks ?
-    #Qanticip = sum(Q[j:duree_anticipation,:,:,:],dims=1)[1,:,:,:] # U*F*E
     
     visited_f = falses(F)
     list_F = []
@@ -61,13 +56,6 @@ function found_fournisseurs(Q, d, u, j)
                         noeud_actu = f
                         break
                     end
-                    ## Idee anticipation :
-                    # if sum(Qanticip[1,f,:])>=10 && d[noeud_actu,f]<d[u,noeud_actu] # Livraison anticipée 
-                    #     push!(chemin,f)
-                    #     visited_f[f] = true
-                    #     noeud_actu = f
-                    #     break
-                    # end
                     visited_f[f] = true
                 end
             end

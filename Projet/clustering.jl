@@ -26,8 +26,8 @@ function make_clusters_1_usine(instance::Instance)::Vector{Cluster}
                 prod_restante .-= conso_agr
                 fourns_attrib[fourn.f] = true
 
-                if length(arr_fourns)>2*instance.F/instance.U
-                    #println("cluster maxed out")
+                if length(arr_fourns)>3*instance.F/instance.U
+                    println("cluster maxed out")
                     break
                 end
             end
@@ -43,7 +43,21 @@ function make_clusters_1_usine(instance::Instance)::Vector{Cluster}
             usis_sorted_by_dist = sort(map(x->(x[2],x[1]),enumerate(instance.graphe.d[fourn.v,1:instance.U])))
             for usi_dist in usis_sorted_by_dist
                 usi = instance.usines[usi_dist[2]]
-                if maximum(conso_agreg(fourn))<=prod_agreg(usi)[argmax(conso_agreg(fourn))] && length(arr_clus[usi_dist[2]].fourns)<2*instance.F/instance.U
+                if maximum(conso_agreg(fourn))<=prod_agreg(usi)[argmax(conso_agreg(fourn))] && length(arr_clus[usi_dist[2]].fourns)<3*instance.F/instance.U
+                    push!(arr_clus[usi_dist[2]].fourns,fourn)
+                    fourns_attrib[fourn.f] = true
+                    break
+                end
+            end
+        end
+    end
+    for (i,x) in enumerate(fourns_attrib)
+        if !x
+            fourn = instance.fournisseurs[i]
+            usis_sorted_by_dist = sort(map(x->(x[2],x[1]),enumerate(instance.graphe.d[fourn.v,1:instance.U])))
+            for usi_dist in usis_sorted_by_dist
+                usi = instance.usines[usi_dist[2]]
+                if 50<prod_agreg(usi)[argmax(conso_agreg(fourn))] && length(arr_clus[usi_dist[2]].fourns)<3*instance.F/instance.U
                     push!(arr_clus[usi_dist[2]].fourns,fourn)
                     fourns_attrib[fourn.f] = true
                     break
@@ -54,6 +68,7 @@ function make_clusters_1_usine(instance::Instance)::Vector{Cluster}
 
     for (i,x) in enumerate(fourns_attrib)
         if !x
+            println("tour 4")
             push!(arr_clus[rand(1:instance.U)].fourns, instance.fournisseurs[i])
         end
     end

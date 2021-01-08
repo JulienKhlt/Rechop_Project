@@ -16,20 +16,13 @@ function test()
         println()
     end
 
-    routes = []
-
-    for clust in clusters
-        Q = new_opti_cluster(clust, instance.emballages, instance.J, 1:instance.J, 1:instance.E)
-
-        ind_F = map(fourn->fourn.f,clust.fourns)
-        d = new_d(instance.graphe.d, clust.U.u:clust.U.u, ind_F, 1, length(ind_F), instance.U)
-        push!(routes, remplissage_camion(Q, d, clust.U.u:clust.U.u, ind_F, 1:instance.J, 1:instance.E, instance.E, instance.emballages,instance.L)...)
-    end
+    routes = calc_routes_avec_pena(clusters,instance)
 
     sol = Solution(R = length(routes),routes=routes)
-    show(sol)
+    #show(sol)
+    write_sol_to_file(sol, "resultat.txt")
     println(feasibility(sol,instance))
-    println(cost(sol,instance,verbose=false))
+    println(cost(sol,instance,verbose=true))
 
 end
 
@@ -41,7 +34,7 @@ function test2()
 
     clusters = make_clusters_1_usine(instance)
 
-    recuit(instance,20,clusters)[2:3]
+    println(recuit(instance,200,0.98,clusters,"resultat.txt")[2:3])
 end
 
-test2()
+test()

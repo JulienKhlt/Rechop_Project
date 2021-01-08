@@ -18,6 +18,12 @@ function new_opti_cluster(cl::Cluster, emballages, J, ind_J, ind_E)
     return New_PNLE_entier([cl.U], cl.fourns, emballages, J, 1, size(cl.fourns, 1), size(ind_E, 1), ind_J, ind_E, s0_u, s0_f)
 end
 
+function new_opti_cluster_avec_pena(cl::Cluster, emballages, J, ind_J, ind_E, γ, L, CStop, CCam, d)
+    # Optimise sur un cluster sans qu'on lui donne de stock initial, le PNLE peut renvoyer le stock final si besoin
+    s0_u, s0_f = stock_clu_ini(cl::Cluster, ind_E)
+    return New_PNLE_entier_avec_pena([cl.U], cl.fourns, emballages, d, CStop, CCam, γ, L, J, 1, size(cl.fourns, 1), size(ind_E, 1), ind_J, ind_E, s0_u, s0_f)
+end
+
 function new_opti_cluster(cl::Cluster, emballages, J, ind_J, ind_E, s0_u, s0_f)
     # Optimise sur un cluster sans qu'on lui donne de stock initial, le PNLE peut renvoyer le stock final si besoin
     return New_PNLE_entier([cl.U], cl.fourns, emballages, J, 1, size(cl.fourns, 1), size(ind_E, 1), ind_J, ind_E, s0_u, s0_f)

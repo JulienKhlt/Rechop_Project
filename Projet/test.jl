@@ -22,7 +22,7 @@ function test()
     #show(sol)
     write_sol_to_file(sol, "resultat.txt")
     println(feasibility(sol,instance))
-    println(cost(sol,instance,verbose=true))
+    println(cost(sol,instance,verbose=false))
 
 end
 

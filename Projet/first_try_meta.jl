@@ -28,7 +28,7 @@ function calc_routes_1_cluster_avec_pena(clust::Cluster, instance::Instance)
     ind_F = map(fourn->fourn.f,clust.fourns)
     d = new_d(instance.graphe.d, clust.U.u:clust.U.u, ind_F, 1, length(ind_F), instance.U)
     Q = new_opti_cluster_avec_pena(clust, instance.emballages, instance.J, 1:instance.J, 1:instance.E, instance.γ, instance.L, instance.cstop, instance.ccam, d)
-    return remplissage_camion(Q, d, clust.U.u:clust.U.u, ind_F, 1:instance.J, 1:instance.E, instance.E, instance.emballages,instance.L)
+    return remplissage_camion_bete(Q, d, clust.U.u:clust.U.u, ind_F, 1:instance.J, 1:instance.E, instance.E, instance.emballages,instance.L)
 end
 
 function calc_routes_par_cluster(clusters, instance)

@@ -1,4 +1,36 @@
 
+function remplissage_camion_bete(Q, d, ind_U, ind_F, ind_J, ind_E, E0, emballages,L)
+    # Une heuristique basique pour remplir les camions
+    U, F, J, E = length(ind_U), length(ind_F), length(ind_J), length(ind_E)
+    routes = []
+    R = 0
+    emballages_par_taille = map(x->Emballage(e=x[2],l=x[1]),sort(map(x->(x.l,x.e),emballages),rev=true))
+    for j in 1:J
+        for u in 1:U
+            for f in 1:F
+                tot_a_livrer = Q[j,u,f,:]
+                while any(tot_a_livrer.>0)
+                    contenu_camion::Vector{Int} = zeros(length(ind_E))
+                    place_restante = L
+                    for elem in emballages_par_taille
+                        while tot_a_livrer[elem.e]>0 && place_restante>=elem.l
+                            contenu_camion[elem.e]+=1
+                            tot_a_livrer[elem.e]-=1
+                            place_restante -= elem.l
+                        end
+                    end
+                    R+=1
+                    stop = RouteStop(f=ind_F[f],Q=contenu_camion)
+                    route = Route(r=R,j=j,x=1,u=ind_U[u],F=1,stops=[stop])
+                    push!(routes, route)
+                end
+            end
+        end
+    end
+
+    return routes
+end
+
 function remplissage_camion(Q, d, ind_U, ind_F, ind_J, ind_E, E0, emballages,L)
     # Une heuristique basique pour remplir les camions
     U, F, J, E = length(ind_U), length(ind_F), length(ind_J), length(ind_E)

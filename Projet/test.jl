@@ -1,7 +1,7 @@
 include("Solution.jl")
 
 function test()
-    filename = "Data/europe.csv"
+    filename = "Data/espagne.csv"
     filepath = joinpath(@__DIR__, filename)
     instance = lire_instance(filepath)
 
@@ -16,11 +16,11 @@ function test()
         println()
     end
 
-    routes = calc_routes_avec_pena(clusters,instance)
+    routes = calc_routes_avec_pena(clusters, instance)
 
     sol = Solution(R = length(routes),routes=routes)
     #show(sol)
-    write_sol_to_file(sol, "resultat.txt")
+    # write_sol_to_file(sol, "resultat.txt")
     println(feasibility(sol,instance))
     println(cost(sol,instance,verbose=false))
 

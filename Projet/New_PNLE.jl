@@ -150,11 +150,11 @@ function New_PNLE_entier_avec_pena(usines, fournisseurs, emballages, d, cstop, c
 
     l = map(e->e.l,emballages)
     
-    model = Model(optimizer_with_attributes(Gurobi.Optimizer,"TimeLimit"=>100,"OutputFlag"=>1))
+    model = Model(optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag"=>1))
     @variable(model, q[1:J, 1:U, 1:F, 1:E] >= 0, integer = notrelaxed)
 
     #variables binaires pour la positivité des flux
-    @variable(model, k[1:J, 1:U, 1:F] >= 0, integer=notrelaxed)
+    @variable(model, k[1:J, 1:U, 1:F] >= 0, integer = notrelaxed)
 
     # Le stockage dans les fournisseurs, usines
     @variable(model, sf[1:E, 1:F, 1:J] >= 0, integer = notrelaxed)
@@ -176,7 +176,7 @@ function New_PNLE_entier_avec_pena(usines, fournisseurs, emballages, d, cstop, c
     @variable(model, cost_sf[1:E, 1:F, 1:J] >= 0)
 
     # Contraintes sur k
-    @constraint(model, [f in 1:F, u in 1:U, j in 2:J], k[j,u,f] >= sum(q[j,u,f,e]*l[e] for e in 1:E)/L)
+    @constraint(model, [f in 1:F, u in 1:U, j in 1:J], k[j, u, f] >= sum(q[j,u,f,e]*l[e] for e in 1:E)/L)
 
     # Calcul du max du stock des fournisseurs
     @constraint(model, [e in 1:E, f in 1:F, j in 2:J], pos[e, f, j] == (sf[e, f, j-1] - b⁻[e, f, j]) + neg[e, f, j])
@@ -199,10 +199,14 @@ function New_PNLE_entier_avec_pena(usines, fournisseurs, emballages, d, cstop, c
     @constraint(model, [e in 1:E, f in 1:F, j in 1:J], z⁺[e, f, j] == sum(q[j, :, f, e]))
 
 
-    @objective(model, Min, sum(k[j,u,f]*(ccam+cstop+γ*d[u,f]) for u in 1:U, j in 1:J, f in 1:F) + sum(cost_su[e, u, j]*cs_u[e, u] for e in 1:E, u in 1:U, j in 1:J) + sum(cost_sf[e, f, j]*cs_f[e, f] for e in 1:E, f in 1:F, j in 1:J) + sum(neg[e, f, j]*cexc[e, f] for e in 1:E, f in 1:F, j in 1:J))
+    @objective(model, Min, sum(k[j,u,f]*(ccam+cstop+γ*d[u, U+f]) for u in 1:U, j in 1:J, f in 1:F) + sum(cost_su[e, u, j]*cs_u[e, u] for e in 1:E, u in 1:U, j in 1:J) + sum(cost_sf[e, f, j]*cs_f[e, f] for e in 1:E, f in 1:F, j in 1:J) + sum(neg[e, f, j]*cexc[e, f] for e in 1:E, f in 1:F, j in 1:J))
 
     optimize!(model)
     @show(objective_value(model))
+    @show(sum(value(k[j,u,f])*(ccam+cstop+γ*d[u, U+f]) for u in 1:U, j in 1:J, f in 1:F))
+    @show(sum(value(cost_su[e, u, j])*cs_u[e, u] for e in 1:E, u in 1:U, j in 1:J))
+    @show(sum(value(cost_sf[e, f, j])*cs_f[e, f] for e in 1:E, f in 1:F, j in 1:J))
+    @show(sum(value(neg[e, f, j])*cexc[e, f] for e in 1:E, f in 1:F, j in 1:J))
 
     Q = zeros(J, U, F, E)
     for j in 1:J

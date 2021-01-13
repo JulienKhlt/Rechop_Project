@@ -1,7 +1,7 @@
 include("Solution.jl")
 include("New_PNLE.jl")
 
-filename = "Data/petite.csv"
+filename = "Data/france.csv"
 filepath = joinpath(@__DIR__, filename)
 instance = lire_instance(filepath)
 
